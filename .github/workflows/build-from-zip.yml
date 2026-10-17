@@ -1,0 +1,56 @@
+
+name: Build PixelVerse APK from ZIP
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'PixelVerse-Android-Project.zip'
+      - '.github/workflows/build-from-zip.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check ZIP exists
+        run: test -f PixelVerse-Android-Project.zip
+
+      - name: Extract project ZIP
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          mkdir extracted
+          unzip -q PixelVerse-Android-Project.zip -d extracted
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        run: |
+          PROJECT_DIR="$(dirname "$(find extracted -name settings.gradle.kts -print -quit)")"
+          test -n "$PROJECT_DIR"
+          cd "$PROJECT_DIR"
+          gradle assembleDebug
+          echo "APK_PATH=$PWD/app/build/outputs/apk/debug/app-debug.apk" >> "$GITHUB_ENV"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PixelVerse-APK
+          path: ${{ env.APK_PATH }}
+          if-no-files-found: error
+  
